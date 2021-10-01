@@ -5,7 +5,6 @@ from threading import Thread
 import schedule
 import json
 import time
-from six import u
 import websocket
 from aliot.utils import Style
 
