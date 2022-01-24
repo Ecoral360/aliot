@@ -32,7 +32,7 @@ exchanges between a server and a client
 
     ```py
     # here, I chose that my function will be protocol 34
-    @my_iot.on_recv(id_protocol=34)
+    @my_iot.on_recv(action_id=34)
     def give_cookies_for_money(money: int):
         return {"cookies": money // 2}
     ```
@@ -43,7 +43,7 @@ exchanges between a server and a client
     1. use the function `my_iot.send()`
 
     ```py
-    @my_iot.on_recv(id_protocol=34)
+    @my_iot.on_recv(action_id=34)
     def give_cookies_for_money(money: int):
         my_iot.send({"cookies": money // 2})
     ```
@@ -51,7 +51,7 @@ exchanges between a server and a client
     2. set the convenience parameter `send_result` to True in the decorator
 
     ```py
-    @my_iot.on_recv(id_protocol=34, send_result=True)
+    @my_iot.on_recv(action_id=34, send_result=True)
     def give_cookies_for_money(money: int):
         return {"cookies": money // 2}
     ```

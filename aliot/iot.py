@@ -6,7 +6,7 @@ import schedule
 import json
 import time
 import websocket
-from aliot.utils import Style
+from aliot.aliot.utils import Style
 
 style_print = Style.style_print
 
@@ -62,17 +62,17 @@ class ObjConnecte:
         if not value:
             self.ws.close()
 
-    def on_recv(self, id_protocol: int, log_reception: bool = True, send_result: bool = False):
+    def on_recv(self, action_id: int, log_reception: bool = True, send_result: bool = False):
         def inner(func):
             def wrapper(*args, **kwargs):
                 if log_reception:
-                    print(f"The protocol: {id_protocol!r} was called with the arguments: "
+                    print(f"The protocol: {action_id!r} was called with the arguments: "
                           f"{args}")
                 result = func(*args, **kwargs)
                 if (send_result):
                     self.send(result)
 
-            self.__protocols[id_protocol] = wrapper
+            self.__protocols[action_id] = wrapper
             return wrapper
 
         return inner

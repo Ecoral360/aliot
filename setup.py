@@ -10,7 +10,7 @@ if __name__ == "__main__":
           install_requires=[
               'msgpack',
               'schedule',
-              'websocket'
+              'websocket-client'
           ],
           setup_requires=['flake8', 'autopep8']
           )
