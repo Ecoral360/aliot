@@ -17,7 +17,7 @@ _no_value = object()
 
 
 class ObjConnecteAlive:
-    __URL = ''
+    __URL = 'wss://alivecode.ca/iotgateway/'
 
     # nb de request max par interval (en ms)
     __bottleneck_capacity = {"max_send": 30,
@@ -34,18 +34,19 @@ class ObjConnecteAlive:
             )
         return super().__new__(cls)
 
-    def __init__(self, key: str):
-        if not isinstance(key, str):
+    def __init__(self, object_id: str):
+        if not isinstance(object_id, str):
             raise ValueError("the value of id_ must be a string")
-        self.__key = key
+        self.__key = object_id
         self.__protocols = {}
         self.__listeners = {}
         self.__broadcast_listeners = {}
         self.__running = False
-        self.ws: websocket.WebSocketApp = None
+        self.ws: websocket.WebSocketApp  = None
         self.__main_loop = None
         self.__repeats = 0
         self.__last_freeze = 0
+        self.__listeners_set = 0
 
     @property
     def protocols(self):
@@ -69,15 +70,13 @@ class ObjConnecteAlive:
         if not value:
             self.ws.close()
 
-    def on_recv(self, action_id: int, log_reception: bool = True, send_result: bool = False):
+    def on_recv(self, action_id: int, log_reception: bool = True,):
         def inner(func):
             def wrapper(*args, **kwargs):
                 if log_reception:
                     print(f"The protocol: {action_id!r} was called with the arguments: "
                           f"{args}")
-                result = func(*args, **kwargs)
-                if (send_result):
-                    self.send(result)
+                func(*args, **kwargs)
 
             self.__protocols[action_id] = wrapper
             return wrapper
@@ -201,6 +200,7 @@ class ObjConnecteAlive:
             self.__repeats += 1
 
     def execute_protocol(self, msg):
+        print(msg)
         must_have_keys = "id", "value"
         if not all(key in msg for key in must_have_keys):
             print("the message received does not have a valid structure")
@@ -238,16 +238,37 @@ class ObjConnecteAlive:
     def on_message(self, ws, message):
         msg = json.loads(message)
 
-        if msg['event'] == "action":
-            if isinstance(msg['data'], list):
-                for m in msg['data']:
+        event = msg['event']
+        data = msg['data']
+
+        if event == "action":
+            if isinstance(data, list):
+                for m in data:
                     self.execute_protocol(m)
             else:
-                self.execute_protocol(msg)
-        elif msg['event'] == "listen":
-            self.execute_listen(msg['data']['projectId'], msg['data']['fields'])
-        elif msg['event'] == 'broadcast':
-            self.execute_broadcast(msg['data']['projectId'], msg['data']['data'])
+                self.execute_protocol(data)
+        elif event == "listen":
+            self.execute_listen(data['projectId'], data['fields'])
+        elif event == 'broadcast':
+            self.execute_broadcast(data['projectId'], data['data'])
+        elif event == 'connected':
+
+            if len(self.__listeners) == 0:
+                style_print("&a[CONNECTED]")
+                self.__running = True
+            else:
+                # Register listeners on ALIVEcode
+                for projectId, projectListeners in self.listeners.items():
+                    fields = sorted(set([f for listener in projectListeners for f in listener['fields']]))
+                    self.ws.send(json.dumps(
+                        {'event': 'listen', 'data': {'projectId': projectId, 'fields': fields}}))
+        elif event == 'listener_set':
+            self.__listeners_set += 1
+            if self.__listeners_set == len(self.__listeners):
+                style_print("&a[CONNECTED]")
+                self.__running = True
+        elif event == 'error':
+            style_print(f"&c[ERROR] {data}")
         
 
     def on_error(self, ws, error):
@@ -271,17 +292,6 @@ class ObjConnecteAlive:
 
         Thread(target=self.__main_loop, daemon=True).start()
 
-        time.sleep(2)
-
-        # Register listeners on ALIVEcode
-        for projectId, projectListeners in self.listeners.items():
-            fields = sorted(set([f for listener in projectListeners for f in listener['fields']]))
-            self.ws.send(json.dumps(
-                {'event': 'listen', 'data': {'projectId': projectId, 'fields': fields}}))
-        
-        time.sleep(0.5)
-        self.__running = True
-        style_print("&a[CONNECTED]")
 
     def begin(self, enable_trace: bool = False):
         style_print("&9[CONNECTING]...")
